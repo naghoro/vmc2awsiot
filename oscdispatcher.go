@@ -31,15 +31,22 @@ func (d OSCDispatcher) Dispatch(packet osc.Packet) {
 		case *osc.Bundle:
 			bundle := p
 
-			for _, message := range bundle.Messages {
-				err := d.sync.OSCReceive(message)
-				if err != nil {
-					zap.L().Warn("message receive failed",
-						zap.Error(err),
-					)
-				}
-
+			err := d.sync.OSCBundleReceive(bundle.Messages)
+			if err != nil {
+				zap.L().Warn("message bundle receive failed",
+					zap.Error(err),
+				)
 			}
+
+			//for _, message := range bundle.Messages {
+			//	err := d.sync.OSCReceive(message)
+			//	if err != nil {
+			//		zap.L().Warn("message receive failed",
+			//			zap.Error(err),
+			//		)
+			//	}
+
+			//}
 
 			for _, bundle := range bundle.Bundles {
 				d.Dispatch(bundle)
