@@ -7,11 +7,13 @@ import (
 	"vmc2awsiot/sender"
 
 	"github.com/hypebeast/go-osc/osc"
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )
 
 type VMCSync interface {
 	OSCReceive(*osc.Message) error
+	OSCBundleReceive(msgs []*osc.Message) error
 	Run(context.Context)
 }
 
@@ -25,8 +27,25 @@ func NewVMCSync(s sender.VMCSender) VMCSync {
 	return &sync{sender: s, buffer: ch}
 }
 
+// ... 送信対象とするかどうか
+func (s sync) oscFilter(msg *osc.Message) bool {
+	if strings.HasPrefix(msg.Address, "/VMC/Ext/Blend/Apply") {
+		return false
+	}
+
+	if strings.HasPrefix(msg.Address, "/VMC/Ext/Bone/") {
+		return true
+	}
+
+	return false
+}
+
 func (s sync) OSCReceive(msg *osc.Message) error {
 	// パスとメッセージをスペースで区切って送信する
+	if !s.oscFilter(msg) {
+		return nil
+	}
+
 	var b strings.Builder
 	b.WriteString(msg.Address)
 
@@ -35,6 +54,53 @@ func (s sync) OSCReceive(msg *osc.Message) error {
 	}
 
 	return s.receive(b.String())
+}
+
+func (s sync) OSCBundleReceive(msgs []*osc.Message) error {
+	// バンドルされたメッセージを同時に送信する
+	// パスとメッセージをスペースで区切って送信する
+
+	var (
+		// key -> address, value -> Arugument複数存在
+		bundleMessges = map[string][]string{}
+		merr          error
+	)
+
+	for _, msg := range msgs {
+
+		if !s.oscFilter(msg) {
+			continue
+		}
+
+		if _, ok := bundleMessges[msg.Address]; !ok {
+			bundleMessges[msg.Address] = []string{}
+		}
+
+		var b strings.Builder
+
+		for _, args := range msg.Arguments {
+			b.WriteString(fmt.Sprintf(" %+v", args))
+		}
+
+		bundleMessges[msg.Address] = append(bundleMessges[msg.Address], b.String())
+	}
+
+	// addressごとに送信する
+	for addr, values := range bundleMessges {
+		v := fmt.Sprintf(
+			"%s%s",
+			addr,
+			strings.Join(values, "\n"),
+		)
+
+		err := s.receive(v)
+
+		if err != nil {
+			merr = multierr.Append(merr, err)
+		}
+	}
+
+	return merr
 }
 
 func (s sync) receive(msg string) error {
