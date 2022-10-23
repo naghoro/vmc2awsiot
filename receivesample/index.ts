@@ -14,24 +14,16 @@ const Settings = require("./settings");
 let currentVrm: any = undefined;
 
 function log(msg: string) {
-  //$("#console").append(`<pre>${msg}</pre>`);
-  //console.log(msg)
+  console.log(msg)
 }
 
 
-/**
-* AWSCognitoCredentialOptions. The credentials options used to create AWSCongnitoCredentialProvider.
-*/
 interface AWSCognitoCredentialOptions
 {
   IdentityPoolId : string,
   Region: string
 }
 
-/**
-* AWSCognitoCredentialsProvider. The AWSCognitoCredentialsProvider implements AWS.CognitoIdentityCredentials.
-*
-*/
 export class AWSCognitoCredentialsProvider extends auth.CredentialsProvider{
   private options: AWSCognitoCredentialOptions;
   private source_provider : AWS.CognitoIdentityCredentials;
@@ -117,11 +109,9 @@ async function connect_websocket(provider: auth.CredentialsProvider) {
 }
 
 async function connectiot() {
-  /** Set up the credentialsProvider */
   const provider = new AWSCognitoCredentialsProvider({
           IdentityPoolId: Settings.AWS_COGNITO_IDENTITY_POOL_ID, 
           Region: Settings.AWS_REGION});
-  /** Make sure the credential provider fetched before setup the connection */
   await provider.refreshCredentialAsync();
 
   connect_websocket(provider)
@@ -129,7 +119,7 @@ async function connectiot() {
       connection
         .subscribe(
           "/VMC/#",
-          mqtt.QoS.AtLeastOnce,
+          mqtt.QoS.AtMostOnce,
           (topic, payload, dup, qos, retain) => {
             const decoder = new TextDecoder("utf8");
             let message = decoder.decode(new Uint8Array(payload));
@@ -145,7 +135,6 @@ async function connectiot() {
       log(`Error while connecting: ${reason}`);
     });
 }
-
 
 
 /**
@@ -415,17 +404,14 @@ function updateVRM(target: string, values:string) {
   }
 }
 
-// renderer
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setPixelRatio( window.devicePixelRatio );
 document.body.appendChild( renderer.domElement );
 
-// camera
 const camera = new THREE.PerspectiveCamera( 30.0, window.innerWidth / window.innerHeight, 0.1, 20.0 );
 camera.position.set( 0.0, 1.0, 5.0 );
 
-// camera controls
 const controls = new OrbitControls( camera, renderer.domElement );
 controls.screenSpacePanning = true;
 controls.target.set( 0.0, 1.0, 0.0 );
@@ -434,7 +420,6 @@ controls.update();
 // scene
 const scene = new THREE.Scene();
 
-// light
 const light = new THREE.DirectionalLight( 0xffffff );
 light.position.set( 1.0, 1.0, 1.0 ).normalize();
 scene.add( light );
@@ -442,10 +427,8 @@ scene.add( light );
 const light1 = new THREE.AmbientLight(0xFFFFFF, 0.5);
 scene.add(light1);
 
-// gltf and vrm
 const loader = new GLTFLoader()
 
-// Install GLTFLoader plugin
 loader.register((parser) => {
   return new VRMLoaderPlugin(parser);
 });
@@ -455,15 +438,11 @@ loader.load(
 	Settings.MODEL_PATH,
 
 	( gltf ) => {
-
-		// calling these functions greatly improves the performance
 		VRMUtils.removeUnnecessaryVertices( gltf.scene );
 		VRMUtils.removeUnnecessaryJoints( gltf.scene );
 
     const vrm = gltf.userData.vrm;
     scene.add(vrm.scene);
-
-    log(vrm);
 
 		vrm.springBoneManager.reset();
 
@@ -471,12 +450,9 @@ loader.load(
     currentVrm = vrm;
 	},
 
-	// called while loading is progressing
 	(progress) => console.log( 'Loading model...', 100.0 * ( progress.loaded / progress.total ), '%' ),
 
-	// called when loading has errors
 	(error) => console.error( error )
-
 );
 
 // helpers
@@ -488,58 +464,16 @@ scene.add( axesHelper );
 
 const clock = new THREE.Clock();
 
-let count = 0;
-
-
-//function printLocal(bone: any) {
-//
-//	log(bone + " pos: " + JSON.stringify(currentVrm.humanoid.getNormalizedBoneNode( bone ).position));
-//	log(bone + " quat: " + JSON.stringify(currentVrm.humanoid.getNormalizedBoneNode( bone ).quaternion));
-//	log(bone + " rot: " + JSON.stringify(currentVrm.humanoid.getNormalizedBoneNode( bone ).rotation));
-//
-//  const e = new THREE.Euler().setFromQuaternion(currentVrm.humanoid.getNormalizedBoneNode( bone ).quaternion) // オイラー角に変換
-//  log(bone + " rot rad: " + JSON.stringify(e))
-//  log(bone + " rot: " + THREE.MathUtils.radToDeg(e.x) + " / " + THREE.MathUtils.radToDeg(e.y) + " / " + THREE.MathUtils.radToDeg(e.z))
-//
-//  // to quaternion
-//  const quaternion = new THREE.Quaternion();
-//  quaternion.setFromEuler(e);
-//	log(bone + " quat: from euler: " + JSON.stringify(quaternion));
-//
-//
-//}
-
-
 function animate() {
 	requestAnimationFrame( animate );
 
 	if ( currentVrm ) {
 	  const deltaTime = clock.getDelta();
 		currentVrm.update( deltaTime );
-
-    if (count % 100 == 1) {
-      //printLocal(VRMHumanBoneName.RightShoulder)
-      //printLocal(VRMHumanBoneName.RightUpperArm)
-	    //log("rightLowerArm pos: " + JSON.stringify(currentVrm.humanoid.getNormalizedBoneNode( VRMHumanBoneName.RightLowerArm ).position));
-	    //log("rightLowerArm quat: " + JSON.stringify(currentVrm.humanoid.getNormalizedBoneNode( VRMHumanBoneName.RightLowerArm ).quaternion));
-	    //log("rightHand pos: " + JSON.stringify(currentVrm.humanoid.getNormalizedBoneNode( VRMHumanBoneName.RightHand ).position));
-	    //log("rightHand quat: " + JSON.stringify(currentVrm.humanoid.getNormalizedBoneNode( VRMHumanBoneName.RightHand ).quaternion));
-
-	    //currentVrm.humanoid.getNormalizedBoneNode( VRMHumanBoneName.RightShoulder ).quaternion.x = 0;
-	    //currentVrm.humanoid.getNormalizedBoneNode( VRMHumanBoneName.RightShoulder ).quaternion.y = 0;
-	    //currentVrm.humanoid.getNormalizedBoneNode( VRMHumanBoneName.RightShoulder ).quaternion.z = 0;
-	    //currentVrm.humanoid.getNormalizedBoneNode( VRMHumanBoneName.RightShoulder ).quaternion.w = 1;
-
-    }
-
-    count++;
 	}
-
-
   
 	renderer.render( scene, camera );
 }
-
 
 connectiot();
 animate();

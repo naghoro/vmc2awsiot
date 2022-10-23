@@ -36,7 +36,7 @@ func NewTLSConfig() *tls.Config {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(cert.Leaf)
+	zap.L().Debug("tls", zap.Any("reaf", cert.Leaf))
 
 	// Create tls.Config with desired tls properties
 	return &tls.Config{
@@ -91,18 +91,29 @@ func (p MQTTSender) Close() {
 	p.client.Disconnect(250)
 }
 
-func (p MQTTSender) Send(ctx context.Context, msg string) error {
+// makeMessage ... メッセージの形式が正しいことをチェックする
+func (p MQTTSender) makeMessage(msg string) (string, string, error) {
 	req := strings.SplitN(msg, " ", 2)
 
-	zap.L().Debug("in send", zap.Any("req", req))
-
 	if len(req) != 2 {
-		return fmt.Errorf("request is not valid: %s %+v", msg, req)
+		return "", "", fmt.Errorf("request is not valid: %s %+v", msg, req)
 	}
 
-	// TODO: エラー処理入れる？
-	zap.L().Debug("publish", zap.Any("req", req))
-	p.client.Publish(req[0], 1, false, req[1])
+	return req[0], req[1], nil
+}
+
+func (p MQTTSender) Send(ctx context.Context, msg string) error {
+	topic, payload, err := p.makeMessage(msg)
+
+	if err != nil {
+		return err
+	}
+
+	token := p.client.Publish(topic, 0, false, payload)
+
+	if err := token.Error(); err != nil {
+		return fmt.Errorf("request is error: %+v", err)
+	}
 
 	return nil
 }

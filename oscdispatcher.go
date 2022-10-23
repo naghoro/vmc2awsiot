@@ -38,16 +38,6 @@ func (d OSCDispatcher) Dispatch(packet osc.Packet) {
 				)
 			}
 
-			//for _, message := range bundle.Messages {
-			//	err := d.sync.OSCReceive(message)
-			//	if err != nil {
-			//		zap.L().Warn("message receive failed",
-			//			zap.Error(err),
-			//		)
-			//	}
-
-			//}
-
 			for _, bundle := range bundle.Bundles {
 				d.Dispatch(bundle)
 			}

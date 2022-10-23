@@ -87,6 +87,9 @@ func (s sync) OSCBundleReceive(msgs []*osc.Message) error {
 
 	// addressごとに送信する
 	for addr, values := range bundleMessges {
+
+		// Note: メッセージが複数の場合、下記のように送る
+		// /VMC/Ext/Bone/Pos Hips 0.0 0.0 0.0 0.0 0.0 0.0 0.0\n Head 0.0 0.0 0.0 0.0 0.0 0.0 0.0
 		v := fmt.Sprintf(
 			"%s%s",
 			addr,
